@@ -1,0 +1,76 @@
+{
+  "name": "@velum/firewall",
+  "version": "0.1.0",
+  "description": "AI firewall middleware with catalog-based extraction, tokenization, and policy enforcement.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/velum-labs/velum.git",
+    "directory": "node/packages/firewall"
+  },
+  "homepage": "https://github.com/velum-labs/velum/tree/main/node/packages/firewall",
+  "bugs": {
+    "url": "https://github.com/velum-labs/velum/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "evals:run": "evalite run",
+    "evals:watch": "evalite watch",
+    "evals:export": "evalite export --output report/export",
+    "evals:case": "tsx evals/run-case.ts"
+  },
+  "peerDependencies": {
+    "@ai-sdk/provider": "^2.0.0",
+    "ai": "^5.0.0"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.44",
+    "@ai-sdk/openai": "^2.0.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@ai-sdk/gateway": "^1.0.41",
+    "@ai-sdk/provider": "^2.0.0",
+    "@eslint/js": "^9",
+    "@types/debug": "^4.1.12",
+    "@types/node": "^20.19.24",
+    "ai": "^5.0.90",
+    "autoevals": "^0.0.131",
+    "better-sqlite3": "^11.6.0",
+    "debug": "^4.4.3",
+    "dotenv": "^17.2.3",
+    "eslint": "^9",
+    "evalite": "1.0.0-beta.7",
+    "minimatch": "^9.0.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.9"
+  }
+}
