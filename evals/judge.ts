@@ -221,7 +221,7 @@ export async function judgeCase(input: JudgeInput): Promise<{
     '## Guidelines',
     '- Prefer exact string/position comparisons.',
     '- Count every occurrence - do not assume patterns.',
-    '- Token format is [[KIND:LABEL:SHORTID]] or markdown format [text](firewall://...).',
+    '- Token format is [[KIND:LABEL:SHORTID]] or markdown format [KIND:LABEL:SHORTID](firewall://...).',
     '- Be strict: if even one occurrence is missed, reflect it in the score.',
     rubricNote ? `\n${rubricNote}` : '',
   ]

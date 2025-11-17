@@ -35,7 +35,7 @@ export function makeTokenizer(secret: string, format: TokenFormat = 'brackets') 
   function token(m: Matter): string {
     const tokenId = id(m);
     if (format === 'markdown') {
-      return `[${m.surface}](firewall://${m.kind.toLowerCase()}/${m.label}/${tokenId})`;
+      return `[${m.kind}:${m.label}:${tokenId}](firewall://${m.kind.toLowerCase()}/${m.label}/${tokenId})`;
     }
     return `[[${m.kind}:${m.label}:${tokenId}]]`;
   }
