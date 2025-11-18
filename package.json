@@ -52,7 +52,13 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.44",
     "@ai-sdk/openai": "^2.0.0",
-    "zod": "^4.1.12"
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
+    "hast": "^1.0.0",
+    "mdast": "^3.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@ai-sdk/gateway": "^1.0.41",

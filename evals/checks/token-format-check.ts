@@ -33,7 +33,7 @@ export function tokenFormatCheck(ctx: CheckContext): CheckResult {
         : invalidTokens.map((token) => `Invalid token format: ${token}`),
     expected:
       tokenFormat === 'markdown'
-        ? '[text](firewall://subj|pred/LABEL/id)'
+        ? '[KIND:LABEL:SHORTID](firewall://subj|pred/LABEL/id)'
         : '[[SUBJ|PRED:LABEL:ID]]',
     actual:
       invalidTokens.length === 0
