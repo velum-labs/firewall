@@ -26,12 +26,62 @@ export class FirewallDeniedError extends Error {
   }
 }
 
-type FirewallScanResult = {
+export type FirewallScanResult = {
   docId: string;
   textTransformed: string;
   decisions: Decision[];
   detections: Detections;
 };
+
+/**
+ * FirewallContext provides explicit access to scan results.
+ * Useful when AsyncLocalStorage-based global capture is not available
+ * or when you want more control over result handling.
+ */
+export interface FirewallContext {
+  /**
+   * Get the most recent scan result
+   */
+  getLatestScan(): FirewallScanResult | undefined;
+
+  /**
+   * Clear the stored scan result
+   */
+  clearScan(): void;
+}
+
+/**
+ * Create a FirewallContext for explicit scan result capture.
+ * Pass this to FirewallMiddlewareOptions to capture results
+ * without relying on global AsyncLocalStorage patterns.
+ * 
+ * @example
+ * ```typescript
+ * const context = createFirewallContext();
+ * const middleware = createFirewallMiddleware(catalog, policies, {
+ *   ...options,
+ *   context
+ * });
+ * 
+ * // Later, access the scan result
+ * const scan = context.getLatestScan();
+ * ```
+ */
+export function createFirewallContext(): FirewallContext {
+  let latestScan: FirewallScanResult | undefined;
+
+  return {
+    getLatestScan() {
+      return latestScan;
+    },
+    clearScan() {
+      latestScan = undefined;
+    },
+    _setScan(scan: FirewallScanResult) {
+      latestScan = scan;
+    },
+  } as FirewallContext & { _setScan(scan: FirewallScanResult): void };
+}
 
 export interface FirewallMiddlewareOptions {
   tokenSecret: string;
@@ -47,6 +97,13 @@ export interface FirewallMiddlewareOptions {
   tokenFormat?: "brackets" | "markdown";
 
   onResult?: (result: FirewallScanResult) => void;
+
+  /**
+   * Optional explicit context for capturing scan results.
+   * If provided, scan results will be stored in this context
+   * in addition to any global handlers.
+   */
+  context?: FirewallContext;
 }
 
 const GLOBAL_RESULT_HANDLER_KEY = Symbol.for("velum.firewall.listener");
@@ -169,6 +226,11 @@ export function createFirewallMiddleware(
       };
       options.onResult?.(eventPayload);
       emitGlobalResult(eventPayload);
+      
+      // Store in explicit context if provided
+      if (options.context) {
+        (options.context as FirewallContext & { _setScan(scan: FirewallScanResult): void })._setScan(eventPayload);
+      }
 
       debug("Input processed: %s", processedText.slice(0, 100));
 
