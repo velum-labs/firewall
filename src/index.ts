@@ -24,6 +24,7 @@ export {
 } from "./middleware";
 export type {
   FirewallMiddlewareOptions,
+  FirewallMiddleware,
   FirewallContext,
   FirewallScanResult,
 } from "./middleware";
