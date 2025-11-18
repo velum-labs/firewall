@@ -93,5 +93,50 @@ describe('tokenization', () => {
     });
     expect(token).toMatch(/^\[\[SUBJ:PERSON:[A-Za-z0-9]+\]\]$/);
   });
+
+  it('should prioritize entityId when hashing subjects', () => {
+    const tokenWithEntity = tokenizer.token({
+      kind: 'SUBJ',
+      label: 'PERSON',
+      surface: 'J. Smith',
+      entityId: 'entity-123',
+    });
+    const tokenSameEntity = tokenizer.token({
+      kind: 'SUBJ',
+      label: 'PERSON',
+      surface: 'John Smith',
+      entityId: 'entity-123',
+    });
+    const tokenDifferentEntity = tokenizer.token({
+      kind: 'SUBJ',
+      label: 'PERSON',
+      surface: 'John Smith',
+      entityId: 'entity-456',
+    });
+    expect(tokenWithEntity).toBe(tokenSameEntity);
+    expect(tokenWithEntity).not.toBe(tokenDifferentEntity);
+  });
+
+  it('should include bound subject entityIds for predicates', () => {
+    const tokenA = tokenizer.token({
+      kind: 'PRED',
+      label: 'DISCLOSURE',
+      surface: 'shared data',
+      subjects: [
+        { label: 'PERSON', surface: 'A. Smith', entityId: 'entity-a' },
+        { label: 'COMPANY', surface: 'Acme', entityId: 'entity-b' },
+      ],
+    });
+    const tokenB = tokenizer.token({
+      kind: 'PRED',
+      label: 'DISCLOSURE',
+      surface: 'shared data',
+      subjects: [
+        { label: 'PERSON', surface: 'Alice Smith', entityId: 'entity-a' },
+        { label: 'COMPANY', surface: 'ACME CORP', entityId: 'entity-b' },
+      ],
+    });
+    expect(tokenA).toBe(tokenB);
+  });
 });
 

@@ -41,12 +41,15 @@ const toSubjectTrigger = ({
   id: subject.id,
   type: subject.type,
   text: subject.text,
+  canonicalSurface: subject.canonicalSurface,
+  entityId: subject.entityId,
   spans: subject.spans,
   confidence: subject.confidence,
   tokenized: toTokenized(tokenizer, tokenFormat, {
     kind: 'SUBJ',
     label: subject.type,
-    surface: subject.text,
+    surface: subject.canonicalSurface ?? subject.text,
+    entityId: subject.entityId,
   }),
 });
 
@@ -92,7 +95,8 @@ const buildDecisionTriggers = ({
         surface: predicate.text,
         subjects: boundSubjects.map((s) => ({
           label: s.type,
-          surface: s.text,
+          surface: s.canonicalSurface ?? s.text,
+          entityId: s.entityId,
         })),
       }),
     };

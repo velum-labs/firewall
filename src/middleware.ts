@@ -1,14 +1,16 @@
 import type { JSONValue, LanguageModelMiddleware } from "ai";
 import createDebug from "debug";
-import type {
-  LanguageModelV2,
-  LanguageModelV2StreamPart,
-} from "@ai-sdk/provider";
+import type { LanguageModelV2 } from "@ai-sdk/provider";
 import { createEngine } from "./engine";
 import type { Catalog } from "./catalog";
 import type { Policy } from "./policy";
 import type { Decision, Detections } from "./engine/types";
 import { mergeTokenizations } from "./replace";
+import {
+  linkSubjectsWithEntityLinker,
+  type EntityLinker,
+} from "./entity-linker";
+import { createFuzzyEntityLinker } from "./fuzzy-linker";
 import {
   extractTextFromMessage,
   findLastUserMessage,
@@ -103,6 +105,20 @@ export interface FirewallMiddlewareOptions {
   onResult?: (result: FirewallScanResult) => void;
 
   /**
+   * Optional entity linker to attach global entity IDs and canonical surfaces.
+   * When provided, all non-structured subjects are resolved before tokenization.
+   */
+  entityLinker?: EntityLinker;
+
+  /**
+   * Namespace to pass to the entity linker. Can be a static string or a
+   * function that derives the namespace from the current docId/text.
+   */
+  entityNamespace?:
+    | string
+    | ((ctx: { docId: string; text: string }) => string | undefined);
+
+  /**
    * Optional explicit context for capturing scan results.
    * If provided, scan results will be stored in this context
    * in addition to any global handlers.
@@ -178,7 +194,11 @@ export function createFirewallMiddleware(
     tokenFormat = "brackets",
     docIdGenerator = defaultDocIdGenerator,
     predicatesEnabled = false,
+    entityLinker,
+    entityNamespace,
   } = options;
+
+  const linker = entityLinker ?? createFuzzyEntityLinker();
 
   const engine = createEngine(catalog, {
     tokenSecret,
@@ -186,6 +206,25 @@ export function createFirewallMiddleware(
     tokenFormat,
     predicatesEnabled,
   });
+
+  const resolveNamespace = (docId: string, text: string) =>
+    typeof entityNamespace === "function"
+      ? entityNamespace({ docId, text })
+      : entityNamespace;
+
+  const linkDetections = async (
+    detections: Detections,
+    docId: string,
+    text: string
+  ) => {
+    await linkSubjectsWithEntityLinker({
+      subjects: detections.subjects,
+      catalog,
+      linker,
+      namespace: resolveNamespace(docId, text),
+    });
+    return detections;
+  };
 
   const applyFirewall = async (
     text: string,
@@ -202,6 +241,7 @@ export function createFirewallMiddleware(
     );
 
     const detections = await engine.extract(docId, text, policies);
+    await linkDetections(detections, docId, text);
     const decisions = await engine.decideWithDetections(
       text,
       policies,
@@ -410,16 +450,9 @@ export function createFirewallMiddleware(
         text.length
       );
 
-      // Create engine
-      const engine = createEngine(catalog, {
-        tokenSecret,
-        model,
-        tokenFormat,
-        predicatesEnabled,
-      });
-
       // Extract entities and predicates
       const detections = await engine.extract(docId, text, policies);
+      await linkDetections(detections, docId, text);
       debug("processMessage: extracted %o", detections);
 
       // Make decisions based on detections
