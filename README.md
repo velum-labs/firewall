@@ -139,6 +139,90 @@ Triggered By: [
 */
 ```
 
+## Entity Linking & Canonical Tokens
+
+`@velum/firewall` automatically assigns a canonical surface and global entity
+ID to every non-structured subject. The middleware ships with a fuzzy matcher
+that uses normalized string similarity (Levenshtein, Jaro–Winkler, character
+n-grams) to cluster variants such as “Alen Rubilar” and “Alen” before
+tokenization. Canonical surfaces are preferred when creating tokens, and the
+entity ID is hashed into the token payload for perfect stability.
+
+### Configuring the middleware
+
+```typescript
+import {
+  createFirewallMiddleware,
+  createFuzzyEntityLinker,
+} from "@velum/firewall";
+
+const firewall = createFirewallMiddleware(catalog, policies, {
+  tokenSecret: process.env.TOKEN_KEY!,
+  model: openai("gpt-4o-mini"),
+  entityLinker: createFuzzyEntityLinker({
+    thresholds: {
+      PERSON: { accept: 0.9, ambiguous: 0.84 },
+    },
+    llmAssist: {
+      model: openai("gpt-4o-mini"),
+      maxPairs: 5,
+    },
+  }),
+  entityNamespace: ({ docId }) => docId.split(":")[0] ?? "global",
+});
+```
+
+### Cross-project stability with `@velum/firewall-vault`
+
+For persistence across services, supply an entity linker backed by your
+database. The `@velum/firewall-vault` package includes Drizzle helpers and the
+required schema (`FirewallEntity`, `FirewallEntitySurface`) to share canonical
+entities and reuse the same entity IDs everywhere.
+
+```typescript
+import { createDrizzleEntityLinker } from "@velum/firewall-vault";
+import { firewallEntity, firewallEntitySurface } from "./db/schema";
+import { db } from "./db/client";
+
+const entityLinker = createDrizzleEntityLinker({
+  db,
+  schema: {
+    entities: {
+      table: firewallEntity,
+      columns: {
+        id: "id",
+        namespace: "namespace",
+        label: "label",
+        canonicalSurface: "canonicalSurface",
+        canonicalNorm: "canonicalNorm",
+        createdAt: "createdAt",
+        updatedAt: "updatedAt",
+      },
+    },
+    surfaces: {
+      table: firewallEntitySurface,
+      columns: {
+        id: "id",
+        entityId: "entityId",
+        surface: "surface",
+        normalized: "normalized",
+        createdAt: "createdAt",
+      },
+    },
+  },
+});
+
+const firewallMiddleware = createFirewallMiddleware(catalog, policies, {
+  tokenSecret,
+  model: openai("gpt-4o-mini"),
+  entityLinker,
+  entityNamespace: () => "ai-chatbot",
+});
+```
+
+When a multi-tenant namespace is provided, entities are isolated per tenant.
+For global analytics, omit the namespace or derive it from your chat/user IDs.
+
 ## API Reference
 
 ### Catalog

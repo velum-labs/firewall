@@ -24,8 +24,10 @@ export {
 } from "./middleware";
 export type {
   FirewallMiddlewareOptions,
+  FirewallMiddleware,
   FirewallContext,
   FirewallScanResult,
+  ProcessMessageResult,
 } from "./middleware";
 
 export { scanInput } from "./scan-input";
@@ -59,3 +61,29 @@ export type { RehypeFirewallOptions } from "./markdown/rehype-firewall";
 
 export { remarkFirewall } from "./markdown/remark-firewall";
 export type { RemarkFirewallOptions } from "./markdown/remark-firewall";
+
+export {
+  linkSubjectsWithEntityLinker,
+} from "./entity-linker";
+export type {
+  EntityLinker,
+  EntityLinkInput,
+  EntityLinkResult,
+} from "./entity-linker";
+
+export {
+  normalizeSurface,
+  computeSimilarityScores,
+  levenshteinRatio,
+  jaroWinkler,
+  ngramSimilarity,
+} from "./fuzzy";
+
+export { createEntityStore, createEntry } from "./entity-store";
+export type { EntityStore, EntityStoreEntry } from "./entity-store";
+
+export { createFuzzyEntityLinker } from "./fuzzy-linker";
+export type {
+  FuzzyEntityLinkerOptions,
+  ThresholdConfig,
+} from "./fuzzy-linker";

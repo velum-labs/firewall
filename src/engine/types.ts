@@ -6,6 +6,8 @@ export type SubjectMention = {
   id: string;
   type: string;
   text: string;
+  canonicalSurface?: string;
+  entityId?: string;
   spans: Span[];
   confidence: number;
 };
@@ -35,7 +37,10 @@ export type TriggerTokenized = {
 export type DecisionSubjectTrigger = {
   kind: 'subject';
   tokenized: TriggerTokenized;
-} & Pick<SubjectMention, 'id' | 'type' | 'text' | 'spans' | 'confidence'>;
+} & Pick<
+  SubjectMention,
+  'id' | 'type' | 'text' | 'spans' | 'confidence' | 'entityId' | 'canonicalSurface'
+>;
 
 export type DecisionPredicateTrigger = {
   kind: 'predicate';

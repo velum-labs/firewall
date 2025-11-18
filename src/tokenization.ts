@@ -1,13 +1,15 @@
 import { createHmac } from 'crypto';
 
+type SubjectMatter = { label: string; surface: string; entityId?: string };
+
 export type Matter =
-  | { kind: 'SUBJ'; label: string; surface: string }
-  | {
+  | ({ kind: 'SUBJ' } & SubjectMatter)
+  | ({
       kind: 'PRED';
       label: string;
       surface: string;
-      subjects?: Array<{ label: string; surface: string }>;
-    };
+      subjects?: SubjectMatter[];
+    });
 
 export type TokenFormat = 'brackets' | 'markdown';
 
@@ -21,10 +23,14 @@ export function makeTokenizer(secret: string, format: TokenFormat = 'brackets') 
 
   function id(m: Matter) {
     const norm = (s: string) => s.normalize('NFKC').trim().toLowerCase();
-    let payload = `${m.kind}|${m.label}|${norm(m.surface)}`;
+    const encodeSurface = (surface: string, entityId?: string) =>
+      entityId ? `EID:${entityId}` : norm(surface);
+    const baseSurface =
+      m.kind === 'SUBJ' ? encodeSurface(m.surface, m.entityId) : norm(m.surface);
+    let payload = `${m.kind}|${m.label}|${baseSurface}`;
     if (m.kind === 'PRED' && m.subjects?.length) {
       const parts = m.subjects
-        .map((s) => `${s.label}=${norm(s.surface)}`)
+        .map((s) => `${s.label}=${encodeSurface(s.surface, s.entityId)}`)
         .sort()
         .join(';');
       payload += `|SUBJ:${parts}`;
