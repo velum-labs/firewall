@@ -27,6 +27,7 @@ export type {
   FirewallMiddleware,
   FirewallContext,
   FirewallScanResult,
+  ProcessMessageResult,
 } from "./middleware";
 
 export { scanInput } from "./scan-input";

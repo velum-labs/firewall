@@ -1,6 +1,9 @@
 import type { JSONValue, LanguageModelMiddleware } from "ai";
 import createDebug from "debug";
-import type { LanguageModelV2 } from "@ai-sdk/provider";
+import type {
+  LanguageModelV2,
+  LanguageModelV2StreamPart,
+} from "@ai-sdk/provider";
 import { createEngine } from "./engine";
 import type { Catalog } from "./catalog";
 import type { Policy } from "./policy";
@@ -26,12 +29,12 @@ export class FirewallDeniedError extends Error {
   }
 }
 
-export type FirewallScanResult = {
+export type FirewallScanResult<T = unknown> = {
   docId: string;
   textTransformed: string;
   decisions: Decision[];
   detections: Detections;
-  messageTransformed?: JSONValue;
+  messageTransformed?: T;
 };
 
 /**
@@ -108,6 +111,17 @@ export interface FirewallMiddlewareOptions {
 }
 
 /**
+ * Result type for processMessage that ensures messageTransformed is always present
+ */
+export type ProcessMessageResult<T> = {
+  docId: string;
+  textTransformed: string;
+  decisions: Decision[];
+  detections: Detections;
+  messageTransformed: T;
+};
+
+/**
  * Extended middleware type with processMessage method for pre-computing firewall results
  */
 export type FirewallMiddleware = LanguageModelMiddleware & {
@@ -116,22 +130,23 @@ export type FirewallMiddleware = LanguageModelMiddleware & {
    * This is useful for pre-computing firewall results before saving messages
    * to a database, ensuring sensitive information is cleaned before persistence.
    *
-   * @param text - The text to process
+   * @param message - The UIMessage to process
    * @param customDocId - Optional custom document ID
-   * @returns FirewallScanResult containing transformed text, decisions, and detections
+   * @returns ProcessMessageResult containing transformed text, decisions, detections, and transformed message
    * @throws FirewallDeniedError if a DENY decision is made and throwOnDeny is true
    *
    * @example
    * ```typescript
-   * const result = await firewallMiddleware.processMessage("John Smith works at Acme Corp");
+   * const result = await firewallMiddleware.processMessage(uiMessage);
    * // result.textTransformed contains tokenized version
-   * // Save this to database instead of original text
+   * // result.messageTransformed contains the message with tokenized text in parts
+   * // Save messageTransformed to database instead of original message
    * ```
    */
-  processMessage(
-    text: string,
+  processMessage<T extends { parts: Array<{ type: string; text?: string }> }>(
+    message: T,
     customDocId?: string
-  ): Promise<FirewallScanResult>;
+  ): Promise<ProcessMessageResult<T>>;
 };
 
 const GLOBAL_RESULT_HANDLER_KEY = Symbol.for("velum.firewall.listener");
@@ -348,37 +363,10 @@ export function createFirewallMiddleware(
 
     wrapStream: async ({ doStream, params }) => {
       debug("wrapStream called");
-
       const result = await doStream();
-      const firewallData = params.providerOptions?.firewall;
-
-      // If no firewall data, return as-is
-      if (!firewallData) {
-        return {
-          ...result,
-          providerMetadata: {
-            ...params.providerOptions,
-          },
-        };
-      }
-
-      const transformStream = new TransformStream({
-        transform(chunk, controller) {
-          // Pass through all chunks unchanged
-          controller.enqueue(chunk);
-        },
-        flush(controller) {
-          // After all chunks are processed, emit the firewall data
-          controller.enqueue({
-            type: "data-firewall",
-            data: firewallData,
-          });
-        },
-      });
 
       return {
         ...result,
-        stream: result.stream.pipeThrough(transformStream),
         providerMetadata: {
           ...params.providerOptions,
         },
@@ -390,25 +378,34 @@ export function createFirewallMiddleware(
      * This is useful for pre-computing firewall results before saving messages
      * to a database, ensuring sensitive information is cleaned before persistence.
      *
-     * @param text - The text to process
-     * @returns FirewallScanResult containing transformed text, decisions, and detections
+     * @param message - The UIMessage to process
+     * @returns ProcessMessageResult containing transformed text, decisions, detections, and transformed message
      * @throws FirewallDeniedError if a DENY decision is made and throwOnDeny is true
      *
      * @example
      * ```typescript
-     * const result = await firewallMiddleware.processMessage("John Smith works at Acme Corp");
+     * const result = await firewallMiddleware.processMessage(uiMessage);
      * // result.textTransformed contains tokenized version
-     * // Save this to database instead of original text
+     * // result.messageTransformed contains the message with tokenized text in parts
+     * // Save messageTransformed to database instead of original message
      * ```
      */
-    processMessage: async (
-      text: string,
+    processMessage: async <
+      T extends { parts: Array<{ type: string; text?: string }> }
+    >(
+      message: T,
       customDocId?: string
-    ): Promise<FirewallScanResult> => {
+    ): Promise<ProcessMessageResult<T>> => {
       const docId = customDocId || docIdGenerator();
 
+      // Extract text from all text parts
+      const text = message.parts
+        .filter((part) => part.type === "text" && part.text)
+        .map((part) => part.text)
+        .join(" ");
+
       debug(
-        "processMessage: processing text (docId: %s, length: %d)",
+        "processMessage: processing message (docId: %s, text length: %d)",
         docId,
         text.length
       );
@@ -446,6 +443,7 @@ export function createFirewallMiddleware(
           textTransformed: text,
           decisions,
           detections,
+          messageTransformed: message,
         };
       }
 
@@ -455,11 +453,22 @@ export function createFirewallMiddleware(
         debug("processMessage: applied tokenization transformations");
       }
 
+      // Create transformed message with tokenized text
+      const transformedMessage = {
+        ...message,
+        parts: message.parts.map((part) =>
+          part.type === "text" && part.text
+            ? { ...part, text: mergedText }
+            : part
+        ),
+      } as T;
+
       return {
         docId,
         textTransformed: mergedText,
         decisions,
         detections,
+        messageTransformed: transformedMessage,
       };
     },
   };
